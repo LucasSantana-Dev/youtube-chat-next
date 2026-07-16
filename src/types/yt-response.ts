@@ -118,7 +118,8 @@ export interface MessageRendererBase {
 
 export interface LiveChatTextMessageRenderer extends MessageRendererBase {
   message: {
-    runs: MessageRun[]
+    /** Absent when a super chat was sent with no accompanying text. */
+    runs?: MessageRun[]
   }
 }
 
@@ -155,7 +156,8 @@ export interface LiveChatPaidStickerRenderer extends MessageRendererBase {
 
 export interface LiveChatMembershipItemRenderer extends MessageRendererBase {
   headerSubtext: {
-    runs: MessageRun[]
+    /** Absent when a member milestone was posted with no accompanying text. */
+    runs?: MessageRun[]
   }
   authorBadges: AuthorBadge[]
 }

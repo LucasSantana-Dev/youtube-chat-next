@@ -110,7 +110,12 @@ function convertColorToHex6(colorNum: number) {
 }
 
 /** メッセージrun配列をMessageItem配列へ変換 */
-function parseMessages(runs: MessageRun[]): MessageItem[] {
+function parseMessages(runs?: MessageRun[]): MessageItem[] {
+  // A super chat or member milestone posted without any text has no runs at all. Upstream mapped
+  // over undefined and threw, taking down the whole chat stream over one empty message (#96).
+  if (!runs) {
+    return []
+  }
   return runs.map((run: MessageRun): MessageItem => {
     if ("text" in run) {
       return run
@@ -160,7 +165,7 @@ function parseActionToChatItem(data: Action): ChatItem | null {
   if (messageRenderer === null) {
     return null
   }
-  let message: MessageRun[] = []
+  let message: MessageRun[] | undefined = []
   if ("message" in messageRenderer) {
     message = messageRenderer.message.runs
   } else if ("headerSubtext" in messageRenderer) {

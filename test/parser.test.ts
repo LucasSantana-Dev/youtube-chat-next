@@ -236,6 +236,16 @@ describe("Parser", () => {
       ])
     })
 
+    // Regression for #96: a super chat sent with money but no text has no `runs` at all, and
+    // upstream mapped straight over undefined — one empty super chat killed the whole stream.
+    test("Super Chat with no message text", () => {
+      const res = JSON.parse(readFileSync(__dirname + "/testdata/get_live_chat.super-chat-no-msg.json").toString())
+      const [chatItems] = parseChatData(res)
+      expect(chatItems).toHaveLength(1)
+      expect(chatItems[0].message).toEqual([])
+      expect(chatItems[0].superchat).toMatchObject({ amount: expect.any(String) })
+    })
+
     test("Super Sticker", () => {
       const res = JSON.parse(readFileSync(__dirname + "/testdata/get_live_chat.super-sticker.json").toString())
       const [chatItems, continuation] = parseChatData(res)
