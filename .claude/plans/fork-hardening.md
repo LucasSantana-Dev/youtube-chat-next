@@ -125,7 +125,60 @@ do not currently exist).
 Cherry-pick, each behind a test:
 - **PR #97** (narze) — superchat/membership milestone with no message. Fixes crash **#96**. Ready.
 - **PR #94** (advancedbear) — `chatType` option: "Top chat" vs "Live chat". Fixes **#80**.
-  ⚠️ **Verify first** (see Open Questions).
+  ✅ Verified (Open Questions #80). **Do NOT cherry-pick #94 as-is** — see spec below.
+
+### Phase 5a — `chatType` (Top vs Live) — SPEC (2026-07-16)
+
+**Why #94 can't be taken as-is:**
+1. Its selection is positional — `Array.from(matchAll(/"continuation":"..."/g))[1]` = Top, `[2]` = Live
+   — the exact 1.3MB-global-scan fragility this fork removed in `matchLiveChatContinuation`. Any
+   payload reshuffle silently returns an unrelated token.
+2. Its API puts `chatType` as constructor arg 2 (`new LiveChat(id, true)`); our fork already uses
+   arg 2 as `interval`. Direct collision.
+3. Boolean `true`/`false` is opaque at the call site.
+
+**Decision — default = `"top"` (keep current behavior).** Rationale: goal (d) is drop-in migration for
+the 247-star base by changing one dependency line. Flipping the default to Live/all changes the message
+set every existing consumer receives. Top also matches YouTube's own web default. Live is **opt-in**.
+(Reversible: a later major version can flip the default with a changelog note.)
+
+**API** (non-breaking — append arg 3):
+- `src/types/data.ts`: `export type ChatType = "top" | "live"`
+- `LiveChat` constructor: `constructor(id: YoutubeId, interval = 1000, chatType: ChatType = "top")`,
+  store `readonly #chatType`. Call site: `new LiveChat(id, 1000, "live")` (self-documenting vs `true`).
+
+**Plumbing** (thread through, no logic elsewhere):
+- `LiveChat.start()` → `fetchLivePage(this.#id, this.#chatType)`
+- `requests.fetchLivePage(id, chatType = "top")` → `getOptionsFromLivePage(html, chatType)`
+- `parser.getOptionsFromLivePage(data, chatType = "top")` → `matchLiveChatContinuation(data, chatType)`
+
+**Selection** (`matchLiveChatContinuation(data, chatType)`) — **IMPLEMENTED 2026-07-16, approach
+revised by measurement:**
+- `"top"` → **unchanged** (`continuations[0]`).
+- `"live"` → the original spec (select the viewSelector sub-menu "Live chat" token) was **disproven
+  by live measurement**: the sub-menu's own reload tokens (both Top and Live, 32 chars) are
+  **rejected by `get_live_chat` with HTTP 400**. Only the long `continuations[0]` (~180 chars) is
+  accepted. Top and Live tokens are byte-identical except one protobuf selector byte: `0x08 0x04` =
+  Top (filtered), `0x08 0x01` = Live (all). **Implementation: take the Top continuation and flip that
+  one byte** (`selectLiveView()` in `parser.ts`). Guard: exactly one `0x08 0x04` or
+  `throw new ScrapeError("live-selector")` — never patch an unrelated field, never silently return Top.
+- `#loop` needs **no change**: the filter rides inside the token, so the next continuation from
+  `get_live_chat` preserves the view across polls (verified — live-contract test polls twice).
+- Fragility acknowledged: byte-patching an opaque protobuf is more brittle than structural parsing,
+  but it is the *only* path that works (sub-menu tokens 400). The `*.live.test.ts` drift alarm is the
+  mitigation — it fails loud if YouTube changes the token shape.
+
+**Tests (behind which this ships):**
+1. Unit (frozen fixture): a watch-page fixture with both sub-menu items. Assert `("live")` and `("top")`
+   return **different** tokens, each the correct one; assert missing viewSelector + `"live"` throws
+   `ScrapeError`. Cheap regression guard: Top token has selector byte `08 04`, Live `08 01`.
+2. Live-contract (`*.live.test.ts`): with `"live"`, `fetchLivePage` + `fetchChat` yields valid items
+   **and** a next continuation; poll a 2nd time and confirm it still works (filter continuity). This is
+   the measurement-behind-a-test the plan requires.
+
+**More-robust fallback (only if title-match proves flaky in the live test):** decode each sub-menu
+item's reload-token protobuf and select the one whose selector byte is `08 01` — locale- and
+order-independent. Heavier; not needed unless #1 above flakes.
 - **#69** — emoji parser `Cannot read properties of undefined (reading '0')`; unguarded
   `.shift()` on thumbnails. Fixed by Phase 1 guarding.
 - **PR #95** — json5 security bump (obsolete after Phase 4).
@@ -145,12 +198,15 @@ Cherry-pick, each behind a test:
 
 ## Open questions (unresolved — do not assert either way)
 
-- **Top chat vs Live chat (#80).** Verified the naive `parser.ts:45` first-match regex *does* land
-  on the `liveChatRenderer` continuation (so it is not grabbing a random unrelated token — better
-  than feared). **Unverified:** whether that continuation is YouTube's *"Top chat"* (algorithmically
-  filtered subset) or *"Live chat"* (everything). If it is Top chat, consumers are silently getting
-  a filtered stream while believing they get all messages — a real correctness/trust bug, and PR #94
-  becomes important. **Resolve by measurement before writing the fix.**
+- **Top chat vs Live chat (#80). RESOLVED 2026-07-16 by measurement (live @LofiGirl).** The scraped
+  `continuations[0]` is YouTube's **"Top chat"** (algorithmically filtered subset), NOT "Live chat"
+  (all messages). Three confirmations: (1) `viewSelector` selected item = "Top chat"; (2) Top vs Live
+  reload tokens are byte-identical except byte 14 — `08 04` (Top, filter=4) vs `08 01` (Live,
+  filter=1); (3) the grabbed `continuations[0]` embeds selector field `#1 varint=4` = Top. So
+  consumers silently get a filtered stream while believing they get everything — a real
+  correctness/trust bug. **PR #94 (`chatType` option) is confirmed important.** Open sub-decision:
+  keep current default (Top, matches YouTube's own web default, no behavior change) vs default to
+  Live/all (arguably what a library caller expects) — a breaking-behavior call for Phase 5.
 - **Datacenter-IP behavior.** All measurements were from a residential IP. Issues #67/#93 (403
   consent) may be datacenter-IP-specific. Untested from a cloud host; do not claim it works there.
 

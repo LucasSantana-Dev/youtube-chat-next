@@ -51,6 +51,22 @@ beforeEach(() => {
 })
 
 describe("LiveChat", () => {
+  describe("chatType", () => {
+    test('defaults to "top" — fetchLivePage called with "top"', async () => {
+      const liveChat = new LiveChat({ liveId: "liveId" })
+      await liveChat.start()
+      liveChat.stop()
+      expect(mockFetchLivePage).toHaveBeenCalledWith({ liveId: "liveId" }, "top")
+    })
+
+    test('passes "live" through to fetchLivePage', async () => {
+      const liveChat = new LiveChat({ liveId: "liveId" }, 1000, "live")
+      await liveChat.start()
+      liveChat.stop()
+      expect(mockFetchLivePage).toHaveBeenCalledWith({ liveId: "liveId" }, "live")
+    })
+  })
+
   describe("constructor", () => {
     test("LiveID", () => {
       const liveChat = new LiveChat({ liveId: "liveId" })

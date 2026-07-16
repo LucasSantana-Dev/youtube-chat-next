@@ -1,7 +1,7 @@
 import axios, { AxiosError } from "axios"
 import { parseChatData, getOptionsFromLivePage } from "./parser"
 import { FetchOptions } from "./types/yt-response"
-import { ChatItem, YoutubeId } from "./types/data"
+import { ChatItem, ChatType, YoutubeId } from "./types/data"
 import { NotLiveError, RateLimitError } from "./errors"
 
 /**
@@ -74,14 +74,17 @@ export async function fetchChat(options: FetchOptions): Promise<[ChatItem[], str
   }
 }
 
-export async function fetchLivePage(id: { channelId: string } | { liveId: string } | { handle: string }) {
+export async function fetchLivePage(
+  id: { channelId: string } | { liveId: string } | { handle: string },
+  chatType: ChatType = "top"
+) {
   const url = generateLiveUrl(id)
   if (!url) {
     throw new TypeError("not found id")
   }
   try {
     const res = await http.get(url)
-    return getOptionsFromLivePage(res.data.toString())
+    return getOptionsFromLivePage(res.data.toString(), chatType)
   } catch (err) {
     const rateLimited = toRateLimitError(err)
     if (rateLimited) {

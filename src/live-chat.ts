@@ -1,6 +1,6 @@
 import { EventEmitter } from "events"
 import TypedEmitter from "typed-emitter"
-import { ChatItem, YoutubeId } from "./types/data"
+import { ChatItem, ChatType, YoutubeId } from "./types/data"
 import { FetchOptions } from "./types/yt-response"
 import { fetchChat, fetchLivePage } from "./requests"
 import { RateLimitError, ScrapeError } from "./errors"
@@ -26,6 +26,7 @@ export class LiveChat extends (EventEmitter as new () => TypedEmitter<LiveChatEv
   #errorCount = 0
   readonly #interval: number
   readonly #id: YoutubeId
+  readonly #chatType: ChatType
 
   /**
    * @param id channelId, liveId, or handle of the stream to follow.
@@ -33,8 +34,11 @@ export class LiveChat extends (EventEmitter as new () => TypedEmitter<LiveChatEv
    *   it wants to be polled (typically every 10s) and we honour whichever is slower. Upstream
    *   treated this value as a fixed rate and so polled ~10x faster than YouTube asks for, which is
    *   the quickest way to get an IP rate-limited.
+   * @param chatType `"top"` (default) reads YouTube's filtered "Top chat"; `"live"` reads every
+   *   message ("Live chat"). Default is `"top"` to match YouTube's own default and keep existing
+   *   consumers' behavior unchanged.
    */
-  constructor(id: YoutubeId, interval = 1000) {
+  constructor(id: YoutubeId, interval = 1000, chatType: ChatType = "top") {
     super()
     if (!id || (!("channelId" in id) && !("liveId" in id) && !("handle" in id))) {
       throw TypeError("Required channelId or liveId or handle.")
@@ -44,6 +48,7 @@ export class LiveChat extends (EventEmitter as new () => TypedEmitter<LiveChatEv
 
     this.#id = id
     this.#interval = interval
+    this.#chatType = chatType
   }
 
   async start(): Promise<boolean> {
@@ -51,7 +56,7 @@ export class LiveChat extends (EventEmitter as new () => TypedEmitter<LiveChatEv
       return false
     }
     try {
-      const options = await fetchLivePage(this.#id)
+      const options = await fetchLivePage(this.#id, this.#chatType)
       this.liveId = options.liveId
       this.#options = options
       this.#running = true

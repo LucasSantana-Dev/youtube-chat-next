@@ -95,28 +95,28 @@ describe("requests", () => {
       mockGet.mockResolvedValue({ data: "responseData" })
       await fetchLivePage({ channelId: "channelId" })
       expect(mockGet).toHaveBeenCalledWith("https://www.youtube.com/channel/channelId/live")
-      expect(mockGetOptionsFromLivePage).toHaveBeenCalledWith("responseData")
+      expect(mockGetOptionsFromLivePage).toHaveBeenCalledWith("responseData", "top")
     })
 
     test("LiveID request", async () => {
       mockGet.mockResolvedValue({ data: "responseData" })
       await fetchLivePage({ liveId: "liveId" })
       expect(mockGet).toHaveBeenCalledWith("https://www.youtube.com/watch?v=liveId")
-      expect(mockGetOptionsFromLivePage).toHaveBeenCalledWith("responseData")
+      expect(mockGetOptionsFromLivePage).toHaveBeenCalledWith("responseData", "top")
     })
 
     test("Handle request", async () => {
       mockGet.mockResolvedValue({ data: "responseData" })
       await fetchLivePage({ handle: "@handle" })
       expect(mockGet).toHaveBeenCalledWith("https://www.youtube.com/@handle/live")
-      expect(mockGetOptionsFromLivePage).toHaveBeenCalledWith("responseData")
+      expect(mockGetOptionsFromLivePage).toHaveBeenCalledWith("responseData", "top")
     })
 
     test("Handle without '@' request", async () => {
       mockGet.mockResolvedValue({ data: "responseData" })
       await fetchLivePage({ handle: "handle" })
       expect(mockGet).toHaveBeenCalledWith("https://www.youtube.com/@handle/live")
-      expect(mockGetOptionsFromLivePage).toHaveBeenCalledWith("responseData")
+      expect(mockGetOptionsFromLivePage).toHaveBeenCalledWith("responseData", "top")
     })
   })
 })
