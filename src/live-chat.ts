@@ -87,7 +87,7 @@ export class LiveChat extends (EventEmitter as new () => TypedEmitter<LiveChatEv
    * Poll until the stream ends or `stop()` is called.
    *
    * Self-scheduling rather than `setInterval`, because a fixed interval fires whether or not the
-   * previous request has come back — so a slow response overlaps the next one and both send the
+   * previous request has come back, so a slow response overlaps the next one and both send the
    * same continuation token.
    */
   async #loop(options: FetchOptions) {
@@ -143,7 +143,7 @@ export class LiveChat extends (EventEmitter as new () => TypedEmitter<LiveChatEv
     return base + Math.random() * 1000
   }
 
-  /** Interruptible sleep — `stop()` clears the timer rather than waiting it out. */
+  /** Interruptible sleep, `stop()` clears the timer rather than waiting it out. */
   #sleep(ms: number): Promise<void> {
     return new Promise((resolve) => {
       this.#timer = setTimeout(resolve, ms)

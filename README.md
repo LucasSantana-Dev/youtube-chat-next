@@ -8,11 +8,11 @@
 
 ---
 
-## No API key required — that's the point
+## No API key required, that's the point
 
 The reason to reach for this library is that it needs **zero credentials**:
 
-- **No API key.** You never register anything. The key it uses is YouTube's own public web key, scraped from the watch page at runtime — an internal detail you never see or supply.
+- **No API key.** You never register anything. The key it uses is YouTube's own public web key, scraped from the watch page at runtime, an internal detail you never see or supply.
 - **No OAuth, no consent screen, no token refresh.**
 - **No Google Cloud project and no quota.** The official [YouTube Data API v3](https://developers.google.com/youtube/v3/live/docs/liveChatMessages) meters `liveChatMessages.list` against a daily quota; this has none.
 - **No per-stream authorization.** You can read the chat of **any public live stream**, not only ones you own or moderate.
@@ -30,7 +30,7 @@ That capability is the load-bearing design goal of this fork. It is preserved de
 
 ### The tradeoff, stated honestly
 
-Needing no key is exactly *because* this is not an official, sanctioned path — see below.
+Needing no key is exactly *because* this is not an official, sanctioned path, see below.
 
 ---
 
@@ -42,7 +42,7 @@ This library scrapes YouTube's private InnerTube endpoint (`/youtubei/v1/live_ch
 
 - **It can break at any time without notice.** YouTube's client is constantly changing. This library has survived 3.5 years unmaintained (v2.2.0, Dec 2022 → now), and it still works on today's YouTube. But that is *not* a guarantee for next month or next year.
 - **Automated access may violate YouTube's Terms of Service.** You are responsible for your own use. In practice, enforcement is technical (rate-limiting, IP blocks) rather than legal. Decide for yourself whether this fits your use case.
-- **The official alternative exists.** The YouTube Data API v3's `liveChatMessages.list` is compliant and stable. **Real tradeoff:** it requires a Google Cloud project, an API key, and OAuth, is capped by a daily quota, and can realistically only read chat for streams you own or moderate — not arbitrary public streams. This library needs none of that and reads any public stream, but carries the risks above. Pick the official API when compliance and stability matter more than zero-setup and open access; pick this when they don't.
+- **The official alternative exists.** The YouTube Data API v3's `liveChatMessages.list` is compliant and stable. **Real tradeoff:** it requires a Google Cloud project, an API key, and OAuth, is capped by a daily quota, and can realistically only read chat for streams you own or moderate, not arbitrary public streams. This library needs none of that and reads any public stream, but carries the risks above. Pick the official API when compliance and stability matter more than zero-setup and open access; pick this when they don't.
 
 ### Best practices
 
@@ -55,7 +55,7 @@ This library scrapes YouTube's private InnerTube endpoint (`/youtubei/v1/live_ch
 
 Verified against live YouTube on 2026-07-15:
 
-1. **Respects YouTube's polling rate.** YouTube's response includes `timeoutMs` (typically 10000ms) saying how often to poll. Upstream polled every 1000ms, ignoring this—about 10× more requests than YouTube invites. Now `interval` is a floor; the library honours `max(interval, timeoutMs)`. Measured: 71 messages delivered, 4 requests instead of ~33.
+1. **Respects YouTube's polling rate.** YouTube's response includes `timeoutMs` (typically 10000ms) saying how often to poll. Upstream polled every 1000ms, ignoring this, about 10× more requests than YouTube invites. Now `interval` is a floor; the library honours `max(interval, timeoutMs)`. Measured: 71 messages delivered, 4 requests instead of ~33.
 
 2. **No longer mutates the global axios.** Upstream set `axios.defaults.headers.common["Accept-Encoding"] = "utf-8"`, changing the singleton for your entire application. Now uses a private axios instance.
 
@@ -64,10 +64,10 @@ Verified against live YouTube on 2026-07-15:
 4. **No overlapping requests.** Replaced `setInterval` with a self-scheduling fetch loop. If a request takes longer than the polling interval, upstream would fire overlapping requests. Now each fetch waits for the previous one to complete.
 
 5. **Typed errors.** Four new error classes let you distinguish "YouTube changed the page shape" from "rate limited" from "stream finished":
-   - `ScrapeError` — parsing failed (YouTube likely changed the HTML/JSON structure)
-   - `NotLiveError` — channel is not currently live
-   - `RateLimitError` — 429 or 403 from YouTube (back off and retry)
-   - `ParseError` — response is malformed
+   - `ScrapeError`, parsing failed (YouTube likely changed the HTML/JSON structure)
+   - `NotLiveError`, channel is not currently live
+   - `RateLimitError`, 429 or 403 from YouTube (back off and retry)
+   - `ParseError`, response is malformed
 
 6. **Backoff with jitter on rate limits.** On 429/403, honours the `Retry-After` header, adds random jitter, and gives up after 5 consecutive failures instead of looping forever.
 
@@ -128,13 +128,13 @@ const liveChat = new LiveChat(
 )
 
 // Optional: Choose which chat view to read.
-// "top"  (default) — YouTube's "Top chat": an algorithmically FILTERED subset.
-// "live"            — "Live chat": every message.
+// "top"  (default), YouTube's "Top chat": an algorithmically FILTERED subset.
+// "live", "Live chat": every message.
 // The default is "top" to match YouTube's own default; pass "live" for the full stream.
 const liveChat = new LiveChat({ channelId: "CHANNEL_ID" }, 1000, "live")
 ```
 
-> **Note:** by default this library reads **"Top chat"**, exactly as YouTube's watch page does — a
+> **Note:** by default this library reads **"Top chat"**, exactly as YouTube's watch page does, a
 > filtered subset, not every message. This was verified by measurement, not assumed. Pass
 > `"live"` as the third argument to read the complete unfiltered chat.
 
@@ -150,7 +150,7 @@ liveChat.on("start", (liveId) => {
 // Fires when a message arrives.
 // chat: ChatItem (see Types section below)
 liveChat.on("chat", (chatItem) => {
-  // message is a MessageItem[] — each item is either a text run or an emoji.
+  // message is a MessageItem[], each item is either a text run or an emoji.
   const text = chatItem.message.map((m) => ("text" in m ? m.text : m.emojiText)).join("")
   console.log(`${chatItem.author.name}: ${text}`)
 })
@@ -161,7 +161,7 @@ liveChat.on("end", (reason) => {
   console.log("Stream ended:", reason)
 })
 
-// Fires on errors. REQUIRED — never omit this.
+// Fires on errors. REQUIRED, never omit this.
 // Distinguishing errors helps you respond correctly:
 // - ScrapeError/ParseError: YouTube changed; alert and stop.
 // - RateLimitError: Back off and retry.
@@ -326,11 +326,11 @@ liveChat.on("chat", (chatItem) => {
 
 liveChat.on("error", (err) => {
   if (err instanceof RateLimitError) {
-    // Rate limited — back off and retry
+    // Rate limited, back off and retry
     console.warn("Rate limited. Waiting before retry...")
     setTimeout(() => liveChat.start(), 30000)
   } else if (err instanceof ScrapeError) {
-    // YouTube changed page structure — needs a code update
+    // YouTube changed page structure, needs a code update
     log.write(`CRITICAL: ${err.message}\n`)
   } else {
     log.write(`ERROR: ${String(err)}\n`)
@@ -344,7 +344,7 @@ await liveChat.start()
 
 ## References & credits
 
-- **Original library:** [youtube-chat](https://github.com/LinaTsukusu/youtube-chat) by [LinaTsukusu](https://github.com/LinaTsukusu) — thank you for the foundation.
+- **Original library:** [youtube-chat](https://github.com/LinaTsukusu/youtube-chat) by [LinaTsukusu](https://github.com/LinaTsukusu), thank you for the foundation.
 - Reverse-engineering reference: https://drroot.page/wp/?p=227
 - Python equivalent: https://github.com/taizan-hokuto/pytchat
 

@@ -8,15 +8,15 @@ import { NotLiveError, RateLimitError } from "./errors"
  * A private axios instance.
  *
  * Upstream assigned to `axios.defaults.headers.common`, which mutated the *consumer's* axios
- * singleton — every unrelated request in the host application inherited those headers.
+ * singleton, every unrelated request in the host application inherited those headers.
  */
 const http = axios.create({
   headers: {
     // Without a browser-like UA YouTube serves a different page, sometimes a consent wall.
     "User-Agent":
       "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
-    // Pin the locale. YouTube localises the watch page by IP, so without this the page — including
-    // the chat tab labels inside it — comes back in the language of wherever the process runs.
+    // Pin the locale. YouTube localises the watch page by IP, so without this the page, including
+    // the chat tab labels inside it, comes back in the language of wherever the process runs.
     "Accept-Language": "en-US,en;q=0.9",
     // Skips the EU consent interstitial, which otherwise replaces the page we need.
     Cookie: "SOCS=CAI",

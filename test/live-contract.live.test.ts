@@ -2,7 +2,7 @@
  * Contract test against real YouTube.
  *
  * The rest of the suite runs on frozen fixtures and a mocked axios. That is fine for logic, but it
- * means the suite cannot fail when YouTube changes — every assertion is about a JSON file captured
+ * means the suite cannot fail when YouTube changes, every assertion is about a JSON file captured
  * in 2022. This library's single largest risk is YouTube drifting away from what we scrape, and
  * nothing in the default suite can detect that.
  *
@@ -44,7 +44,7 @@ async function findLiveStream(): Promise<{ options: LiveOptions; source: string 
   }
 
   throw new Error(
-    "INCONCLUSIVE — no live stream found to test against, so the contract was never exercised. " +
+    "INCONCLUSIVE, no live stream found to test against, so the contract was never exercised. " +
       "This is NOT a pass. Set YT_LIVE_ID to a known-live video id and re-run.\n" +
       attempts.map((a) => `  - ${a}`).join("\n")
   )
@@ -104,7 +104,7 @@ describe("live contract (real YouTube)", () => {
 
       if (sample.length === 0) {
         throw new Error(
-          "INCONCLUSIVE — the stream produced no chat messages in 60s, so parsing was never " +
+          "INCONCLUSIVE, the stream produced no chat messages in 60s, so parsing was never " +
             "exercised. Not a pass. Retry against a busier stream."
         )
       }
@@ -122,12 +122,12 @@ describe("live contract (real YouTube)", () => {
 
   describe("chatType: live", () => {
     // Proves the "Live chat" (unfiltered) view actually resolves to a working continuation and keeps
-    // working across a poll — the exact thing that can only be verified against real YouTube, and the
+    // working across a poll, the exact thing that can only be verified against real YouTube, and the
     // measurement behind the Top-vs-Live fix (#80).
     test('fetchLivePage("live") yields a usable continuation that survives a second poll', async () => {
       const liveOptions = await fetchLivePage({ liveId: live.options.liveId }, "live")
       expect(liveOptions.continuation.length).toBeGreaterThan(20)
-      // The Live view must differ from the default Top view — otherwise selection silently did nothing.
+      // The Live view must differ from the default Top view, otherwise selection silently did nothing.
       expect(liveOptions.continuation).not.toEqual(live.options.continuation)
 
       const [, next, timeoutMs] = await fetchChat(liveOptions)

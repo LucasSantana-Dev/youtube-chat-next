@@ -238,7 +238,7 @@ describe("Parser", () => {
     })
 
     // Regression for #96: a super chat sent with money but no text has no `runs` at all, and
-    // upstream mapped straight over undefined — one empty super chat killed the whole stream.
+    // upstream mapped straight over undefined, one empty super chat killed the whole stream.
     test("Super Chat with no message text", () => {
       const res = JSON.parse(readFileSync(__dirname + "/testdata/get_live_chat.super-chat-no-msg.json").toString())
       const [chatItems] = parseChatData(res)
@@ -427,8 +427,27 @@ describe("Parser", () => {
           '"INNERTUBE_API_KEY":"AIzaKEY","clientVersion":"2.20240101",' +
           '"liveChatRenderer":{"continuations":[{"reloadContinuationData":{"continuation":"AAAAAAAA"}}]}'
         expect(() => getOptionsFromLivePage(noSelector, "live")).toThrow(ScrapeError)
-        // ...while "top" on the same page still succeeds — the failure is specific to the live flip.
+        // ...while "top" on the same page still succeeds, the failure is specific to the live flip.
         expect(getOptionsFromLivePage(noSelector, "top").continuation).toBe("AAAAAAAA")
+      })
+
+      test('"live" fails loud when the Top token is ambiguous (more than one selector byte)', () => {
+        // "CAQIBA==" decodes to 08 04 08 04, two candidate selectors, so flipping would be a guess.
+        const ambiguous =
+          '<link rel="canonical" href="https://www.youtube.com/watch?v=ID">' +
+          '"INNERTUBE_API_KEY":"AIzaKEY","clientVersion":"2.20240101",' +
+          '"liveChatRenderer":{"continuations":[{"reloadContinuationData":{"continuation":"CAQIBA=="}}]}'
+        expect(() => getOptionsFromLivePage(ambiguous, "live")).toThrow(ScrapeError)
+      })
+
+      test('"live" fails loud (ScrapeError, not URIError) on a malformed percent-encoded token', () => {
+        // A truncated percent escape ("AA%GG") makes decodeURIComponent throw; it must surface as a
+        // ScrapeError like every other live-selector failure, not leak a raw URIError.
+        const malformed =
+          '<link rel="canonical" href="https://www.youtube.com/watch?v=ID">' +
+          '"INNERTUBE_API_KEY":"AIzaKEY","clientVersion":"2.20240101",' +
+          '"liveChatRenderer":{"continuations":[{"reloadContinuationData":{"continuation":"AA%GG"}}]}'
+        expect(() => getOptionsFromLivePage(malformed, "live")).toThrow(ScrapeError)
       })
     })
   })
