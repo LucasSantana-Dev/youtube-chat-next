@@ -29,9 +29,23 @@ function toRateLimitError(err: unknown): RateLimitError | undefined {
   if (res?.status !== 429 && res?.status !== 403) {
     return undefined
   }
-  const header = res.headers?.["retry-after"]
-  const retryAfterMs = header ? Number(header) * 1000 : undefined
-  return new RateLimitError(res.status, Number.isFinite(retryAfterMs) ? retryAfterMs : undefined)
+  return new RateLimitError(res.status, parseRetryAfter(res.headers?.["retry-after"]))
+}
+
+/** Retry-After is either delta-seconds ("120") or an HTTP-date (RFC 7231). Handle both. */
+function parseRetryAfter(header: unknown): number | undefined {
+  if (typeof header !== "string") {
+    return undefined
+  }
+  const seconds = Number(header)
+  if (Number.isFinite(seconds)) {
+    return seconds * 1000
+  }
+  const dateMs = Date.parse(header)
+  if (Number.isNaN(dateMs)) {
+    return undefined
+  }
+  return Math.max(0, dateMs - Date.now())
 }
 
 /**

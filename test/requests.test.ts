@@ -8,8 +8,14 @@ jest.mock("axios", () => ({
 }))
 
 import { fetchLivePage, fetchChat } from "../src/requests"
+import { RateLimitError } from "../src/errors"
 jest.mock("../src/parser")
 import { parseChatData, getOptionsFromLivePage } from "../src/parser"
+
+/** Shape a rejection like an axios error carrying a response + headers. */
+function axiosError(status: number, headers: Record<string, string> = {}) {
+  return { response: { status, headers } }
+}
 
 const mockParseChatData = parseChatData as jest.Mock
 const mockGetOptionsFromLivePage = getOptionsFromLivePage as jest.Mock
@@ -42,6 +48,33 @@ describe("requests", () => {
         }
       )
       expect(mockParseChatData).toHaveBeenCalledWith("responseData")
+    })
+
+    test("maps 429 to RateLimitError with numeric Retry-After", async () => {
+      mockPost.mockRejectedValue(axiosError(429, { "retry-after": "120" }))
+      await expect(fetchChat({ apiKey: "k", clientVersion: "v", continuation: "c" })).rejects.toMatchObject({
+        constructor: RateLimitError,
+        status: 429,
+        retryAfterMs: 120_000,
+      })
+    })
+
+    test("parses an HTTP-date Retry-After into a positive delay", async () => {
+      const when = new Date(Date.now() + 45_000).toUTCString()
+      mockPost.mockRejectedValue(axiosError(403, { "retry-after": when }))
+      let caught: unknown
+      await fetchChat({ apiKey: "k", clientVersion: "v", continuation: "c" }).catch((e) => (caught = e))
+      expect(caught).toBeInstanceOf(RateLimitError)
+      // ~45s out; allow slack for clock drift during the test.
+      expect((caught as RateLimitError).retryAfterMs).toBeGreaterThan(30_000)
+      expect((caught as RateLimitError).retryAfterMs).toBeLessThanOrEqual(45_000)
+    })
+
+    test("leaves retryAfterMs undefined when Retry-After is absent", async () => {
+      mockPost.mockRejectedValue(axiosError(429))
+      let caught: unknown
+      await fetchChat({ apiKey: "k", clientVersion: "v", continuation: "c" }).catch((e) => (caught = e))
+      expect((caught as RateLimitError).retryAfterMs).toBeUndefined()
     })
   })
 

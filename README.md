@@ -21,7 +21,7 @@ This library scrapes YouTube's private InnerTube endpoint (`/youtubei/v1/live_ch
 ### Best practices
 
 - **Always attach an `error` listener.** Node's EventEmitter throws if an `error` event fires with no listener, which will crash your process.
-- **Datacenter and cloud IPs are rate-limited more aggressively than residential ones.** If you are deploying on AWS, Google Cloud, or DigitalOcean and hit limits, try switching to a residential proxy.
+- **Datacenter and cloud IPs are rate-limited more aggressively than residential ones.** If you deploy on AWS, Google Cloud, or DigitalOcean and hit limits, honour the `RateLimitError` and its `Retry-After`, lower your request volume (a larger `interval`), and stop after bounded retries rather than hammering through the limit.
 
 ---
 
@@ -114,7 +114,9 @@ liveChat.on("start", (liveId) => {
 // Fires when a message arrives.
 // chat: ChatItem (see Types section below)
 liveChat.on("chat", (chatItem) => {
-  console.log(`${chatItem.author.name}: ${chatItem.message}`)
+  // message is a MessageItem[] — each item is either a text run or an emoji.
+  const text = chatItem.message.map((m) => ("text" in m ? m.text : m.emojiText)).join("")
+  console.log(`${chatItem.author.name}: ${text}`)
 })
 
 // Fires when the stream ends or an unrecoverable error occurs.
@@ -253,7 +255,7 @@ liveChat.on("start", (liveId) => {
 
 liveChat.on("chat", (chatItem) => {
   console.log(`[${chatItem.author.name}] ${chatItem.message
-    .map(m => m.text || m.emojiText)
+    .map(m => ("text" in m ? m.text : m.emojiText))
     .join("")}`)
 })
 
@@ -281,7 +283,7 @@ const liveChat = new LiveChat({ liveId: "KHRj-j02a1w" })
 
 liveChat.on("chat", (chatItem) => {
   const line = `${chatItem.timestamp.toISOString()} | ${chatItem.author.name}: ${
-    chatItem.message.map(m => m.text || m.emojiText).join("")
+    chatItem.message.map(m => ("text" in m ? m.text : m.emojiText)).join("")
   }\n`
   log.write(line)
 })
