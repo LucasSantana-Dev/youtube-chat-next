@@ -120,6 +120,26 @@ describe("live contract (real YouTube)", () => {
     })
   })
 
+  describe("chatType: live", () => {
+    // Proves the "Live chat" (unfiltered) view actually resolves to a working continuation and keeps
+    // working across a poll — the exact thing that can only be verified against real YouTube, and the
+    // measurement behind the Top-vs-Live fix (#80).
+    test('fetchLivePage("live") yields a usable continuation that survives a second poll', async () => {
+      const liveOptions = await fetchLivePage({ liveId: live.options.liveId }, "live")
+      expect(liveOptions.continuation.length).toBeGreaterThan(20)
+      // The Live view must differ from the default Top view — otherwise selection silently did nothing.
+      expect(liveOptions.continuation).not.toEqual(live.options.continuation)
+
+      const [, next, timeoutMs] = await fetchChat(liveOptions)
+      // The filter rides inside the token, so the next continuation must still be there to poll again.
+      expect(next.length).toBeGreaterThan(20)
+      expect(timeoutMs).toBeGreaterThan(500)
+
+      const [, next2] = await fetchChat({ ...liveOptions, continuation: next })
+      expect(next2.length).toBeGreaterThan(20)
+    })
+  })
+
   describe("end to end", () => {
     test("LiveChat emits real messages and polls at YouTube's requested rate", async () => {
       const liveChat = new LiveChat({ liveId: live.options.liveId })

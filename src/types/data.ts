@@ -41,3 +41,11 @@ export interface EmojiItem extends ImageItem {
 }
 
 export type YoutubeId = { channelId: string } | { liveId: string } | { handle: string }
+
+/**
+ * Which chat view to read.
+ * - `"top"` (default): YouTube's own default — an algorithmically filtered subset ("Top chat").
+ *   Kept as the default so existing consumers see no behavior change.
+ * - `"live"`: every message ("Live chat"), the unfiltered stream YouTube's UI hides behind a toggle.
+ */
+export type ChatType = "top" | "live"

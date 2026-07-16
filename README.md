@@ -126,7 +126,17 @@ const liveChat = new LiveChat(
   { channelId: "CHANNEL_ID" },
   5000  // interval in milliseconds
 )
+
+// Optional: Choose which chat view to read.
+// "top"  (default) — YouTube's "Top chat": an algorithmically FILTERED subset.
+// "live"            — "Live chat": every message.
+// The default is "top" to match YouTube's own default; pass "live" for the full stream.
+const liveChat = new LiveChat({ channelId: "CHANNEL_ID" }, 1000, "live")
 ```
+
+> **Note:** by default this library reads **"Top chat"**, exactly as YouTube's watch page does — a
+> filtered subset, not every message. This was verified by measurement, not assumed. Pass
+> `"live"` as the third argument to read the complete unfiltered chat.
 
 ### 4. Add event listeners
 

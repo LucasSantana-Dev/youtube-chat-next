@@ -1,4 +1,5 @@
 import { getOptionsFromLivePage, parseChatData } from "../src/parser"
+import { ScrapeError } from "../src/errors"
 import { readFileSync } from "fs"
 
 describe("Parser", () => {
@@ -394,6 +395,41 @@ describe("Parser", () => {
     test("No such Live", () => {
       const res = readFileSync(__dirname + "/testdata/no_live_page.html").toString()
       expect(() => getOptionsFromLivePage(res)).toThrow(/^Live Stream was not found$/)
+    })
+
+    describe("chatType", () => {
+      const page = readFileSync(__dirname + "/testdata/live-page.html").toString()
+
+      // Measured against live YouTube: only the long continuations[0] token works at get_live_chat;
+      // Top and Live differ by one selector byte (0x08 0x04 = Top, 0x08 0x01 = Live). "live" is the
+      // Top token with that byte flipped. This is the fixture's Top token so patched.
+      const LIVE_TOKEN =
+        "0ofMyANxGlhDaWtxSndvWVZVTjRhMDlNWjJST2RXMTJWa2xSY1c0MWNITmZZa3BCRWd0a1kyaHhaRVpQVnpoRlNSb1Q2cWpkdVFFTkNndGtZMmh4WkVaUFZ6aEZTU0FCMAGCAQIIAYgBAaABnuPj1OGt9AKyAQA="
+
+      test("defaults to Top chat (unchanged behavior)", () => {
+        expect(getOptionsFromLivePage(page).continuation).toBe(getOptionsFromLivePage(page, "top").continuation)
+      })
+
+      test('chatType "live" flips the Top token\'s selector byte to the Live view', () => {
+        expect(getOptionsFromLivePage(page, "live").continuation).toBe(LIVE_TOKEN)
+      })
+
+      test('"live" and "top" return different continuations', () => {
+        expect(getOptionsFromLivePage(page, "live").continuation).not.toBe(
+          getOptionsFromLivePage(page, "top").continuation
+        )
+      })
+
+      test('"live" fails loud when the Top token has no selector byte to flip (no silent fallback)', () => {
+        // A live page whose continuation decodes to bytes without a single 0x08 0x04 selector.
+        const noSelector =
+          '<link rel="canonical" href="https://www.youtube.com/watch?v=ID">' +
+          '"INNERTUBE_API_KEY":"AIzaKEY","clientVersion":"2.20240101",' +
+          '"liveChatRenderer":{"continuations":[{"reloadContinuationData":{"continuation":"AAAAAAAA"}}]}'
+        expect(() => getOptionsFromLivePage(noSelector, "live")).toThrow(ScrapeError)
+        // ...while "top" on the same page still succeeds — the failure is specific to the live flip.
+        expect(getOptionsFromLivePage(noSelector, "top").continuation).toBe("AAAAAAAA")
+      })
     })
   })
 })

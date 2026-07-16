@@ -9,10 +9,10 @@ import {
   MessageRun,
   Thumbnail,
 } from "./types/yt-response"
-import { ChatItem, ImageItem, MessageItem } from "./types/data"
+import { ChatItem, ChatType, ImageItem, MessageItem } from "./types/data"
 import { NotLiveError, ScrapeError } from "./errors"
 
-export function getOptionsFromLivePage(data: string): FetchOptions & { liveId: string } {
+export function getOptionsFromLivePage(data: string, chatType: ChatType = "top"): FetchOptions & { liveId: string } {
   const idResult = data.match(/<link rel="canonical" href="https:\/\/www.youtube.com\/watch\?v=(.+?)">/)
   if (!idResult) {
     throw new NotLiveError("Live Stream was not found")
@@ -37,7 +37,7 @@ export function getOptionsFromLivePage(data: string): FetchOptions & { liveId: s
   // that appears anywhere in ~1.3MB of page HTML. The loose match happens to land on the right
   // token today, but only because of where YouTube currently orders its payload — any reshuffle
   // silently hands us an unrelated token instead of failing.
-  const continuation = matchLiveChatContinuation(data)
+  const continuation = matchLiveChatContinuation(data, chatType)
   if (!continuation) {
     throw new ScrapeError("continuation")
   }
@@ -50,8 +50,17 @@ export function getOptionsFromLivePage(data: string): FetchOptions & { liveId: s
   }
 }
 
-/** Pull the live chat's own reload continuation out of the watch page. */
-function matchLiveChatContinuation(data: string): string | undefined {
+/** Pull the requested chat view's reload continuation out of the watch page. */
+function matchLiveChatContinuation(data: string, chatType: ChatType): string | undefined {
+  const top = matchTopContinuation(data)
+  if (chatType === "live" && top) {
+    return selectLiveView(top)
+  }
+  return top
+}
+
+/** The default "Top chat" reload continuation — YouTube's `continuations[0]`. */
+function matchTopContinuation(data: string): string | undefined {
   const scoped = data.match(
     /"liveChatRenderer"\s*:\s*\{.*?"continuations"\s*:\s*\[\s*\{\s*"reloadContinuationData"\s*:\s*\{\s*"continuation"\s*:\s*"([^"]+)"/s
   )
@@ -60,6 +69,33 @@ function matchLiveChatContinuation(data: string): string | undefined {
   }
   // Fall back to upstream's loose match so a payload reshuffle degrades instead of hard-failing.
   return data.match(/['"]continuation['"]:\s*['"](.+?)['"]/)?.[1]
+}
+
+/**
+ * Turn the "Top chat" continuation into the "Live chat" (unfiltered) one.
+ *
+ * Measured against live YouTube, not assumed: only the long `continuations[0]` token is accepted by
+ * `get_live_chat` — the view-selector's own reload tokens are rejected (HTTP 400). The Top and Live
+ * tokens are byte-identical except a single protobuf selector byte: `0x08 0x04` = Top (a filtered
+ * subset), `0x08 0x01` = Live (every message). So we flip that one byte.
+ *
+ * Guard: if the token does not contain *exactly one* `0x08 0x04`, we throw rather than patch an
+ * unrelated field — a caller who asked for every message must never silently get a filtered subset
+ * (or a corrupted token). Failing loud is the whole point of this fork.
+ */
+function selectLiveView(topContinuation: string): string {
+  const buf = Buffer.from(decodeURIComponent(topContinuation).replace(/-/g, "+").replace(/_/g, "/"), "base64")
+  const offsets: number[] = []
+  for (let i = 0; i < buf.length - 1; i++) {
+    if (buf[i] === 0x08 && buf[i + 1] === 0x04) {
+      offsets.push(i)
+    }
+  }
+  if (offsets.length !== 1) {
+    throw new ScrapeError("live-selector")
+  }
+  buf[offsets[0] + 1] = 0x01
+  return buf.toString("base64").replace(/\+/g, "-").replace(/\//g, "_")
 }
 
 /**
