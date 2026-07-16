@@ -1,0 +1,42 @@
+name: Publish to GitHub Packages
+
+# Mirrors the release to the GitHub Packages registry so it shows in the repo's Packages sidebar.
+# npmjs.org's `youtube-chat-next` remains the canonical install; GitHub Packages requires an
+# owner-scoped name, so this publishes `@lucassantana-dev/youtube-chat-next` as a mirror.
+#
+# Unlike publish.yml, workflow_dispatch is safe here: this only ever pushes an owner-scoped package
+# to the owner's own GitHub Packages registry with the built-in GITHUB_TOKEN — it cannot reach npmjs.
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  publish:
+    name: Publish to GitHub Packages
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          registry-url: "https://npm.pkg.github.com"
+          scope: "@lucassantana-dev"
+      - run: npm ci
+      - run: npm run build
+      # Scope the name for GitHub Packages without touching the committed package.json (npmjs keeps
+      # the unscoped canonical name). --allow-same-version so re-runs at an existing tag don't fail.
+      - name: Scope the package name for GitHub Packages
+        run: npm pkg set name=@lucassantana-dev/youtube-chat-next
+      - name: Publish
+        run: npm publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
