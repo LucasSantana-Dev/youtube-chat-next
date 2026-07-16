@@ -6,6 +6,10 @@
 **This fork:** https://github.com/LucasSantana-Dev/youtube-chat-next  
 **License:** MIT (original copyright preserved)
 
+### About this fork
+
+Upstream [`LinaTsukusu/youtube-chat`](https://github.com/LinaTsukusu/youtube-chat) has been dormant since November 2022 (last release v2.2.0), with community PRs left unreviewed for years, including [#94](https://github.com/LinaTsukusu/youtube-chat/pull/94), which proposed a `chatType` option back in January 2023. This fork carries that idea forward (with a different, measured implementation) alongside broader hardening: poll-rate respect, a live drift canary, an error taxonomy, and modern toolchain. It ships on npm as `youtube-chat-next` and versions independently (v3.x). The MIT license and original copyright are preserved, and contributions back upstream are welcome if it ever resumes maintenance.
+
 ---
 
 ## No API key required, that's the point
