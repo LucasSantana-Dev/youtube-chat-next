@@ -38,7 +38,7 @@ jobs:
         # Classify the result rather than letting `failure()` catch everything: the test exits
         # nonzero for INCONCLUSIVE (no live stream / no messages) too, and a bare `failure()` would
         # also fire on checkout/npm-ci faults. Only a genuine contract break should raise an alarm.
-        # `continue-on-error` so this step never fails the job on its own — the classification does.
+        # `continue-on-error` so this step never fails the job on its own - the classification does.
         continue-on-error: true
         env:
           YT_LIVE_ID: ${{ github.event.inputs.liveId }}
@@ -68,7 +68,7 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            const title = "Live canary failed — YouTube may have changed"
+            const title = "Live canary failed - YouTube may have changed"
             const existing = await github.rest.issues.listForRepo({
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -83,7 +83,7 @@ jobs:
               "- the runner's datacenter IP got rate-limited (transient), or",
               "- no live stream was available to test against (inconclusive, not a real failure).",
               "",
-              "The test output distinguishes these — a `ScrapeError` naming a specific field means a",
+              "The test output distinguishes these - a `ScrapeError` naming a specific field means a",
               "real page-shape change. `INCONCLUSIVE` means it never actually checked anything.",
               "",
               `Run: ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,

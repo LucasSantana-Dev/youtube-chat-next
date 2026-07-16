@@ -3,7 +3,7 @@
 - **Status:** Accepted
 - **Date:** 2026-07-16
 - **Deciders:** Lucas Santana (maintainer)
-- **Decision method:** `/research-and-decide` — research → adversarial critic (`decision-critic`, Opus) → plan → this record.
+- **Decision method:** `/research-and-decide` - research → adversarial critic (`decision-critic`, Opus) → plan → this record.
 
 ## Context
 
@@ -35,22 +35,22 @@ coverage thresholds, the Node/axios/TS/jest/eslint/prettier bumps, and replacing
 - **Extend the existing ruleset rather than add classic branch protection** (reuse what's there;
   the ruleset already enforces on everyone via an empty bypass-actor list, which *is* the
   `enforce_admins = true` the maintainer chose). To the "main branch" ruleset add:
-  - a `pull_request` rule (require a PR before merge, `required_approving_review_count = 0` — a
+  - a `pull_request` rule (require a PR before merge, `required_approving_review_count = 0` - a
     solo repo cannot require reviews because GitHub forbids approving your own PR), and
   - a `required_status_checks` rule for `Lint`, `Test (Node 18)`, `Test (Node 20)`,
-    `Test (Node 22)`, `Audit` — the ruleset previously gated on scanning/quality/review but not on
+    `Test (Node 22)`, `Audit` - the ruleset previously gated on scanning/quality/review but not on
     the test matrix.
-- **`CodeQL` workflow** (`github/codeql-action`, `javascript-typescript`) added — the ruleset
+- **`CodeQL` workflow** (`github/codeql-action`, `javascript-typescript`) added - the ruleset
   already *requires* CodeQL results; nothing produced them. This un-blocks `develop` and satisfies
   the `code_scanning` rule. (This reverses an earlier draft that deferred CodeQL as "low signal":
   the repo's own policy already mandates it, so it is not optional here.)
-- **`Audit` job** (`npm audit --audit-level=high --omit=dev`) added to `ci.yml` — a baseline
+- **`Audit` job** (`npm audit --audit-level=high --omit=dev`) added to `ci.yml` - a baseline
   supply-chain gate over the committed lockfile.
 - **Per-PR dependency-delta scanning is left to the repo's existing Socket Security** (`Socket
   Security: Pull Request Alerts`), which was already wired and passing. An
   `actions/dependency-review-action` gate was written first but **removed after CI proved it
-  redundant** — Socket already covers the PR delta, and `dependency-review` additionally errored
-  (`Dependency review is not supported on this repository` — the Dependency graph feature is off).
+  redundant** - Socket already covers the PR delta, and `dependency-review` additionally errored
+  (`Dependency review is not supported on this repository` - the Dependency graph feature is off).
   Reusing Socket over enabling a repo feature to run a second, overlapping tool.
 
 ### Autonomy
@@ -62,30 +62,30 @@ coverage thresholds, the Node/axios/TS/jest/eslint/prettier bumps, and replacing
   minor/major bumps are left for a human.
 - **Repo "Allow auto-merge" enabled**, so any PR (agent- or human-opened) with `gh pr merge --auto`
   lands the moment required checks pass.
-- **`concurrency: cancel-in-progress`** on `ci.yml` — cancel superseded runs on the same ref.
+- **`concurrency: cancel-in-progress`** on `ci.yml` - cancel superseded runs on the same ref.
 
 ## Alternatives considered
 
-- **Add checks without branch protection** — rejected. The checks already run; without protection
+- **Add checks without branch protection** - rejected. The checks already run; without protection
   "required" is unenforceable.
-- **`enforce_admins = false` (owner bypass)** — rejected by the maintainer and flagged BLOCKER by
+- **`enforce_admins = false` (owner bypass)** - rejected by the maintainer and flagged BLOCKER by
   the critic: it makes the checks advisory on the primary development actor, contradicting the
   "enforceable" goal.
-- **Auto-merge everything on green (incl. runtime minors / majors)** — rejected. The unit suite is
+- **Auto-merge everything on green (incl. runtime minors / majors)** - rejected. The unit suite is
   100% frozen 2022 fixtures + `jest.mock("axios")`; it cannot catch a breaking *runtime* dependency
   change, so green ≠ safe for runtime semver-minor+. Scope auto-merge to patches + dev-dep minors.
-- **CodeQL / SAST as a required check** — *initially* deferred as low signal on pure request/parse
+- **CodeQL / SAST as a required check** - *initially* deferred as low signal on pure request/parse
   code, then **adopted** once CI revealed the existing ruleset already requires CodeQL and was
   deadlocking merges without it. Satisfying the policy beat fighting it.
-- **Release automation (release-please / semantic-release)** — deferred. `publish.yml` is already
+- **Release automation (release-please / semantic-release)** - deferred. `publish.yml` is already
   tag-triggered and works; a release-PR bot adds config + a new failure surface for a rarely
   released library.
-- **Coverage gate here** — deferred; owned by `fork-hardening.md` Phase 4 to avoid duplication.
+- **Coverage gate here** - deferred; owned by `fork-hardening.md` Phase 4 to avoid duplication.
 
 ## Consequences
 
 **Positive**
-- Every merge to `develop` — including the maintainer's — is gated on lint, the full test matrix,
+- Every merge to `develop` - including the maintainer's - is gated on lint, the full test matrix,
   and two supply-chain checks. "Required" is now real.
 - The repo keeps its own dependencies fresh and can land safe updates and agent PRs without a human
   in the loop.
