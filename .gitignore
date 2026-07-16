@@ -6,3 +6,5 @@ debug.ts
 testrun.ts
 *.map
 coverage
+
+graphify-out
