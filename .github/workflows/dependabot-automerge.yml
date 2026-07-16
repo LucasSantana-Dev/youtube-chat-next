@@ -20,10 +20,10 @@ jobs:
         uses: dependabot/fetch-metadata@v2
 
       # Safe subset, gated only on Dependabot's *enumerated* outputs (update-type,
-      # dependency-type) — never on package-ecosystem, whose value is not contract-stable:
+      # dependency-type) - never on package-ecosystem, whose value is not contract-stable:
       #   - any patch bump (lowest-risk semver change), and
       #   - dev-dependency minor bumps (build/test tooling, not shipped to consumers).
-      # Everything else — runtime minors, ALL majors, GitHub Actions minors/majors — is left
+      # Everything else - runtime minors, ALL majors, GitHub Actions minors/majors - is left
       # for a human. A breaking runtime change cannot slip through on the frozen-fixture suite.
       - name: Enable auto-merge for safe updates
         if: >
