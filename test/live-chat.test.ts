@@ -40,7 +40,7 @@ function once(emitter: LiveChat, event: "chat" | "error" | "end", ms = 2000): Pr
 beforeEach(() => {
   mockFetchChat.mockReset()
   mockFetchLivePage.mockReset()
-  // [items, continuation, timeoutMs] — YouTube asks to be polled every 10s.
+  // [items, continuation, timeoutMs], YouTube asks to be polled every 10s.
   mockFetchChat.mockResolvedValue([[chatItem], "continuation", 10_000])
   mockFetchLivePage.mockResolvedValue({
     liveId: "liveId",
@@ -52,7 +52,7 @@ beforeEach(() => {
 
 describe("LiveChat", () => {
   describe("chatType", () => {
-    test('defaults to "top" — fetchLivePage called with "top"', async () => {
+    test('defaults to "top", fetchLivePage called with "top"', async () => {
       const liveChat = new LiveChat({ liveId: "liveId" })
       await liveChat.start()
       liveChat.stop()
@@ -117,7 +117,7 @@ describe("LiveChat", () => {
       liveChat.stop()
     })
 
-    test("Stop is idempotent — emits end only once", async () => {
+    test("Stop is idempotent, emits end only once", async () => {
       const liveChat = new LiveChat({ channelId: "channelId" })
       const onEnd = jest.fn()
       liveChat.on("end", onEnd)
@@ -183,7 +183,7 @@ describe("LiveChat", () => {
       expect(await ended).toBe("Live stream ended")
     })
 
-    test("ScrapeError stops immediately — retrying cannot fix a page-shape change", async () => {
+    test("ScrapeError stops immediately, retrying cannot fix a page-shape change", async () => {
       mockFetchChat.mockRejectedValue(new ScrapeError("continuation"))
       const liveChat = new LiveChat({ channelId: "channelId" }, 10)
       liveChat.on("error", jest.fn())

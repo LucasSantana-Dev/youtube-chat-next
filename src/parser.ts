@@ -35,7 +35,7 @@ export function getOptionsFromLivePage(data: string, chatType: ChatType = "top")
 
   // Anchor to liveChatRenderer's own continuation rather than taking the first "continuation" key
   // that appears anywhere in ~1.3MB of page HTML. The loose match happens to land on the right
-  // token today, but only because of where YouTube currently orders its payload — any reshuffle
+  // token today, but only because of where YouTube currently orders its payload, any reshuffle
   // silently hands us an unrelated token instead of failing.
   const continuation = matchLiveChatContinuation(data, chatType)
   if (!continuation) {
@@ -59,7 +59,7 @@ function matchLiveChatContinuation(data: string, chatType: ChatType): string | u
   return top
 }
 
-/** The default "Top chat" reload continuation — YouTube's `continuations[0]`. */
+/** The default "Top chat" reload continuation, YouTube's `continuations[0]`. */
 function matchTopContinuation(data: string): string | undefined {
   const scoped = data.match(
     /"liveChatRenderer"\s*:\s*\{.*?"continuations"\s*:\s*\[\s*\{\s*"reloadContinuationData"\s*:\s*\{\s*"continuation"\s*:\s*"([^"]+)"/s
@@ -75,16 +75,24 @@ function matchTopContinuation(data: string): string | undefined {
  * Turn the "Top chat" continuation into the "Live chat" (unfiltered) one.
  *
  * Measured against live YouTube, not assumed: only the long `continuations[0]` token is accepted by
- * `get_live_chat` — the view-selector's own reload tokens are rejected (HTTP 400). The Top and Live
+ * `get_live_chat`, the view-selector's own reload tokens are rejected (HTTP 400). The Top and Live
  * tokens are byte-identical except a single protobuf selector byte: `0x08 0x04` = Top (a filtered
  * subset), `0x08 0x01` = Live (every message). So we flip that one byte.
  *
  * Guard: if the token does not contain *exactly one* `0x08 0x04`, we throw rather than patch an
- * unrelated field — a caller who asked for every message must never silently get a filtered subset
+ * unrelated field, a caller who asked for every message must never silently get a filtered subset
  * (or a corrupted token). Failing loud is the whole point of this fork.
  */
 function selectLiveView(topContinuation: string): string {
-  const buf = Buffer.from(decodeURIComponent(topContinuation).replace(/-/g, "+").replace(/_/g, "/"), "base64")
+  let decoded: string
+  try {
+    decoded = decodeURIComponent(topContinuation)
+  } catch {
+    // A malformed percent escape means the token is not the shape we expect. Surface it as a
+    // ScrapeError like every other live-selector failure rather than leaking a raw URIError.
+    throw new ScrapeError("live-selector")
+  }
+  const buf = Buffer.from(decoded.replace(/-/g, "+").replace(/_/g, "/"), "base64")
   const offsets: number[] = []
   for (let i = 0; i < buf.length - 1; i++) {
     if (buf[i] === 0x08 && buf[i + 1] === 0x04) {
@@ -105,7 +113,7 @@ function selectLiveView(topContinuation: string): string {
  * An empty continuation means the stream has ended and polling should stop.
  */
 export function parseChatData(data: GetLiveChatResponse): [ChatItem[], string, number] {
-  // When a stream ends — or YouTube returns an error payload — `continuationContents` is simply
+  // When a stream ends, or YouTube returns an error payload, `continuationContents` is simply
   // absent. Upstream indexed straight through it, so this threw a TypeError that the polling loop
   // caught and retried forever, silently, until the process died.
   const liveChatContinuation = data?.continuationContents?.liveChatContinuation
