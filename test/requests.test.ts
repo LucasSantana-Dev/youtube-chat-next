@@ -76,6 +76,18 @@ describe("requests", () => {
       await fetchChat({ apiKey: "k", clientVersion: "v", continuation: "c" }).catch((e) => (caught = e))
       expect((caught as RateLimitError).retryAfterMs).toBeUndefined()
     })
+
+    test.each([
+      ["negative", "-1"],
+      ["multiply-overflow", "1e306"],
+      ["already-infinite", "1e309"],
+      ["garbage", "soon"],
+    ])("ignores a %s Retry-After rather than producing a bad delay", async (_label, value) => {
+      mockPost.mockRejectedValue(axiosError(429, { "retry-after": value }))
+      let caught: unknown
+      await fetchChat({ apiKey: "k", clientVersion: "v", continuation: "c" }).catch((e) => (caught = e))
+      expect((caught as RateLimitError).retryAfterMs).toBeUndefined()
+    })
   })
 
   describe("fetchLivePage", () => {

@@ -39,7 +39,9 @@ function parseRetryAfter(header: unknown): number | undefined {
   }
   const seconds = Number(header)
   if (Number.isFinite(seconds)) {
-    return seconds * 1000
+    // A finite seconds value can still overflow to Infinity once multiplied, and "-1" is negative.
+    const delayMs = seconds * 1000
+    return Number.isFinite(delayMs) && delayMs >= 0 ? delayMs : undefined
   }
   const dateMs = Date.parse(header)
   if (Number.isNaN(dateMs)) {
