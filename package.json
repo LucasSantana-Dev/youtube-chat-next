@@ -1,9 +1,12 @@
 {
-  "name": "youtube-chat",
-  "version": "2.2.0",
+  "name": "youtube-chat-next",
+  "version": "3.0.0",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
-  "repository": "https://github.com/LinaTsukusu/youtube-chat.git",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/LucasSantana-Dev/youtube-chat-next.git"
+  },
   "author": "LinaTsukusu <lina.tsukusu@gmail.com>",
   "license": "MIT",
   "private": false,
@@ -13,7 +16,8 @@
     "test": "jest",
     "lint": "eslint \"src/**/*.ts\" \"test/**/*.ts\"",
     "format": "prettier --write \"{src,test}/**/*.ts\"",
-    "format-check": "prettier --check \"{src,test}/**/*.ts\""
+    "format-check": "prettier --check \"{src,test}/**/*.ts\"",
+    "test:live": "jest --testPathIgnorePatterns=/node_modules/ --testMatch=\"**/test/**/*.live.test.ts\""
   },
   "files": [
     "dist/**/*.js",
@@ -24,24 +28,30 @@
     "live",
     "chat",
     "comment",
-    "stream"
+    "stream",
+    "livechat",
+    "innertube"
   ],
   "devDependencies": {
-    "@types/jest": "^29.2.3",
-    "@types/node": "^18.11.9",
+    "@types/jest": "^30.0.0",
+    "@types/node": "^22.20.1",
     "@typescript-eslint/eslint-plugin": "^5.45.0",
     "@typescript-eslint/parser": "^5.45.0",
     "eslint": "^8.28.0",
-    "eslint-config-prettier": "^8.5.0",
+    "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-jest": "^27.1.6",
-    "jest": "^29.3.1",
-    "prettier": "^2.8.0",
-    "ts-jest": "^29.0.3",
+    "jest": "^30.4.2",
+    "prettier": "^3.9.5",
+    "ts-jest": "^29.4.11",
     "ts-node": "^10.9.1",
-    "typescript": "^4.9.3"
+    "typescript": "^5.9.3"
   },
   "dependencies": {
-    "axios": "^1.2.0",
+    "axios": "^1.18.1",
     "typed-emitter": "^2.1.0"
+  },
+  "description": "Fetch YouTube Live chat. Maintained fork of youtube-chat.",
+  "engines": {
+    "node": ">=18"
   }
 }

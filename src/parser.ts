@@ -10,71 +10,83 @@ import {
   Thumbnail,
 } from "./types/yt-response"
 import { ChatItem, ImageItem, MessageItem } from "./types/data"
+import { NotLiveError, ScrapeError } from "./errors"
 
 export function getOptionsFromLivePage(data: string): FetchOptions & { liveId: string } {
-  let liveId: string
   const idResult = data.match(/<link rel="canonical" href="https:\/\/www.youtube.com\/watch\?v=(.+?)">/)
-  if (idResult) {
-    liveId = idResult[1]
-  } else {
-    throw new Error("Live Stream was not found")
+  if (!idResult) {
+    throw new NotLiveError("Live Stream was not found")
+  }
+  const liveId = idResult[1]
+
+  if (/['"]isReplay['"]:\s*(true)/.test(data)) {
+    throw new NotLiveError(`${liveId} is finished live`)
   }
 
-  const replayResult = data.match(/['"]isReplay['"]:\s*(true)/)
-  if (replayResult) {
-    throw new Error(`${liveId} is finished live`)
-  }
-
-  let apiKey: string
   const keyResult = data.match(/['"]INNERTUBE_API_KEY['"]:\s*['"](.+?)['"]/)
-  if (keyResult) {
-    apiKey = keyResult[1]
-  } else {
-    throw new Error("API Key was not found")
+  if (!keyResult) {
+    throw new ScrapeError("INNERTUBE_API_KEY")
   }
 
-  let clientVersion: string
   const verResult = data.match(/['"]clientVersion['"]:\s*['"]([\d.]+?)['"]/)
-  if (verResult) {
-    clientVersion = verResult[1]
-  } else {
-    throw new Error("Client Version was not found")
+  if (!verResult) {
+    throw new ScrapeError("clientVersion")
   }
 
-  let continuation: string
-  const continuationResult = data.match(/['"]continuation['"]:\s*['"](.+?)['"]/)
-  if (continuationResult) {
-    continuation = continuationResult[1]
-  } else {
-    throw new Error("Continuation was not found")
+  // Anchor to liveChatRenderer's own continuation rather than taking the first "continuation" key
+  // that appears anywhere in ~1.3MB of page HTML. The loose match happens to land on the right
+  // token today, but only because of where YouTube currently orders its payload — any reshuffle
+  // silently hands us an unrelated token instead of failing.
+  const continuation = matchLiveChatContinuation(data)
+  if (!continuation) {
+    throw new ScrapeError("continuation")
   }
 
   return {
     liveId,
-    apiKey,
-    clientVersion,
+    apiKey: keyResult[1],
+    clientVersion: verResult[1],
     continuation,
   }
 }
 
-/** get_live_chat レスポンスを変換 */
-export function parseChatData(data: GetLiveChatResponse): [ChatItem[], string] {
+/** Pull the live chat's own reload continuation out of the watch page. */
+function matchLiveChatContinuation(data: string): string | undefined {
+  const scoped = data.match(
+    /"liveChatRenderer"\s*:\s*\{.*?"continuations"\s*:\s*\[\s*\{\s*"reloadContinuationData"\s*:\s*\{\s*"continuation"\s*:\s*"([^"]+)"/s
+  )
+  if (scoped) {
+    return scoped[1]
+  }
+  // Fall back to upstream's loose match so a payload reshuffle degrades instead of hard-failing.
+  return data.match(/['"]continuation['"]:\s*['"](.+?)['"]/)?.[1]
+}
+
+/**
+ * get_live_chat レスポンスを変換
+ *
+ * Returns the items, the next continuation token, and the poll delay YouTube requests.
+ * An empty continuation means the stream has ended and polling should stop.
+ */
+export function parseChatData(data: GetLiveChatResponse): [ChatItem[], string, number] {
+  // When a stream ends — or YouTube returns an error payload — `continuationContents` is simply
+  // absent. Upstream indexed straight through it, so this threw a TypeError that the polling loop
+  // caught and retried forever, silently, until the process died.
+  const liveChatContinuation = data?.continuationContents?.liveChatContinuation
+  if (!liveChatContinuation) {
+    return [[], "", 0]
+  }
+
   let chatItems: ChatItem[] = []
-  if (data.continuationContents.liveChatContinuation.actions) {
-    chatItems = data.continuationContents.liveChatContinuation.actions
+  if (liveChatContinuation.actions) {
+    chatItems = liveChatContinuation.actions
       .map((v) => parseActionToChatItem(v))
       .filter((v): v is NonNullable<ChatItem> => v !== null)
   }
 
-  const continuationData = data.continuationContents.liveChatContinuation.continuations[0]
-  let continuation = ""
-  if (continuationData.invalidationContinuationData) {
-    continuation = continuationData.invalidationContinuationData.continuation
-  } else if (continuationData.timedContinuationData) {
-    continuation = continuationData.timedContinuationData.continuation
-  }
-
-  return [chatItems, continuation]
+  const continuationData = liveChatContinuation.continuations?.[0]
+  const next = continuationData?.invalidationContinuationData ?? continuationData?.timedContinuationData
+  return [chatItems, next?.continuation ?? "", next?.timeoutMs ?? 0]
 }
 
 /** サムネイルオブジェクトをImageItemへ変換 */
@@ -98,7 +110,12 @@ function convertColorToHex6(colorNum: number) {
 }
 
 /** メッセージrun配列をMessageItem配列へ変換 */
-function parseMessages(runs: MessageRun[]): MessageItem[] {
+function parseMessages(runs?: MessageRun[]): MessageItem[] {
+  // A super chat or member milestone posted without any text has no runs at all. Upstream mapped
+  // over undefined and threw, taking down the whole chat stream over one empty message (#96).
+  if (!runs) {
+    return []
+  }
   return runs.map((run: MessageRun): MessageItem => {
     if ("text" in run) {
       return run
@@ -148,7 +165,7 @@ function parseActionToChatItem(data: Action): ChatItem | null {
   if (messageRenderer === null) {
     return null
   }
-  let message: MessageRun[] = []
+  let message: MessageRun[] | undefined = []
   if ("message" in messageRenderer) {
     message = messageRenderer.message.runs
   } else if ("headerSubtext" in messageRenderer) {

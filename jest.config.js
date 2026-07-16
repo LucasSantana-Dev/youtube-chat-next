@@ -10,6 +10,8 @@ module.exports = {
   },
   preset: "ts-jest",
   testMatch: ["**/test/**/*.test.ts"],
+  // *.live.test.ts hits real YouTube. Excluded from the default run; see `npm run test:live`.
+  testPathIgnorePatterns: ["/node_modules/", "\\.live\\.test\\.ts$"],
   moduleNameMapper: {
     "^@/(.*)$": "<rootDir>/src/$1",
   },
