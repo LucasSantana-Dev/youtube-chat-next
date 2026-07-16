@@ -1,6 +1,6 @@
 # youtube-chat-next
 
-> Fetch YouTube live chat without the official API. **Unofficial continuation** of [youtube-chat](https://github.com/LinaTsukusu/youtube-chat) by [LinaTsukusu](https://github.com/LinaTsukusu), now maintained for modern YouTube.
+> Read any public YouTube live chat with **no API key, no OAuth, no Google Cloud project.** Just a video, channel, or handle. **Unofficial continuation** of [youtube-chat](https://github.com/LinaTsukusu/youtube-chat) by [LinaTsukusu](https://github.com/LinaTsukusu), now maintained for modern YouTube.
 
 **Original repository:** https://github.com/LinaTsukusu/youtube-chat  
 **This fork:** https://github.com/LucasSantana-Dev/youtube-chat-next  
@@ -8,15 +8,41 @@
 
 ---
 
+## No API key required — that's the point
+
+The reason to reach for this library is that it needs **zero credentials**:
+
+- **No API key.** You never register anything. The key it uses is YouTube's own public web key, scraped from the watch page at runtime — an internal detail you never see or supply.
+- **No OAuth, no consent screen, no token refresh.**
+- **No Google Cloud project and no quota.** The official [YouTube Data API v3](https://developers.google.com/youtube/v3/live/docs/liveChatMessages) meters `liveChatMessages.list` against a daily quota; this has none.
+- **No per-stream authorization.** You can read the chat of **any public live stream**, not only ones you own or moderate.
+
+```javascript
+import { LiveChat } from "youtube-chat-next"
+
+// This is the whole setup. No keys, no config, no accounts.
+const chat = new LiveChat({ handle: "@LofiGirl" })
+chat.on("chat", (item) => console.log(item.author.name))
+await chat.start()
+```
+
+That capability is the load-bearing design goal of this fork. It is preserved deliberately, and the daily [drift canary](#what-changed-in-this-fork) exists to catch the day YouTube changes something that would break it.
+
+### The tradeoff, stated honestly
+
+Needing no key is exactly *because* this is not an official, sanctioned path — see below.
+
+---
+
 ## How this works & what that means
 
-This library scrapes YouTube's private InnerTube endpoint (`/youtubei/v1/live_chat/get_live_chat`) by extracting an API key and continuation token from the watch page. **It is not the official YouTube Data API.** It is not affiliated with, endorsed by, or supported by YouTube or Google.
+This library scrapes YouTube's private InnerTube endpoint (`/youtubei/v1/live_chat/get_live_chat`) by extracting YouTube's own public web API key and a continuation token from the watch page. You never provide the key; it is read from the page for you. **It is not the official YouTube Data API.** It is not affiliated with, endorsed by, or supported by YouTube or Google.
 
 ### Reality check
 
 - **It can break at any time without notice.** YouTube's client is constantly changing. This library has survived 3.5 years unmaintained (v2.2.0, Dec 2022 → now), and it still works on today's YouTube. But that is *not* a guarantee for next month or next year.
 - **Automated access may violate YouTube's Terms of Service.** You are responsible for your own use. In practice, enforcement is technical (rate-limiting, IP blocks) rather than legal. Decide for yourself whether this fits your use case.
-- **The official alternative exists.** The YouTube Data API v3's `liveChatMessages.list` is compliant and quota-bound. **Real tradeoff:** it requires OAuth and can realistically only read chat for streams you own or moderate, not arbitrary public streams. This library reads any public stream but carries the risks above.
+- **The official alternative exists.** The YouTube Data API v3's `liveChatMessages.list` is compliant and stable. **Real tradeoff:** it requires a Google Cloud project, an API key, and OAuth, is capped by a daily quota, and can realistically only read chat for streams you own or moderate — not arbitrary public streams. This library needs none of that and reads any public stream, but carries the risks above. Pick the official API when compliance and stability matter more than zero-setup and open access; pick this when they don't.
 
 ### Best practices
 
