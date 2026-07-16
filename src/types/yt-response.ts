@@ -4,10 +4,13 @@
 export interface GetLiveChatResponse {
   responseContext: object
   trackingParams?: string
-  continuationContents: {
+  /** Absent once the stream ends, and on error payloads. */
+  continuationContents?: {
     liveChatContinuation: {
-      continuations: Continuation[]
-      actions: Action[]
+      /** Absent on the final response of a stream. */
+      continuations?: Continuation[]
+      /** Absent whenever no new messages arrived in the polling window. */
+      actions?: Action[]
     }
   }
 }
