@@ -1,0 +1,39 @@
+name: CodeQL
+
+# Satisfies the default-branch ruleset's `code_scanning` rule (CodeQL, high-or-higher). Without
+# this workflow producing results, the ruleset has nothing to evaluate and every merge to the
+# default branch is blocked. JS/TS is an interpreted language for CodeQL, so no build step is
+# needed.
+on:
+  push:
+    branches: [develop, main]
+  pull_request:
+    branches: [develop, main]
+  schedule:
+    - cron: "0 5 * * 1" # Weekly, Monday 05:00 UTC (offset from the 04:00 live-canary).
+
+permissions:
+  contents: read
+  security-events: write
+  actions: read
+
+jobs:
+  analyze:
+    name: Analyze (${{ matrix.language }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        language: ["javascript-typescript"]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+      - name: Perform CodeQL analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:${{ matrix.language }}"

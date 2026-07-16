@@ -14,10 +14,14 @@ harm consumers.
 
 Two gaps blocked that goal on the CI/process side:
 
-1. **`develop` had no branch protection at all** (verified: GitHub API returned
-   `404 "Branch not protected"`). `ci.yml` ran Lint + a Node 18/20/22 test matrix, but nothing
-   *gated* a merge on them — the checks were advisory. "More required checks" is unachievable
-   without protection as the load-bearing piece.
+1. **`develop` was gated by an active *ruleset*, not classic branch protection.** The classic
+   protection API returned `404 "Branch not protected"`, which is misleading: a repository
+   **ruleset** ("main branch", targeting `~DEFAULT_BRANCH`, no bypass actors) already required
+   CodeQL code scanning, code quality (errors), and Copilot code review. But **no CodeQL workflow
+   existed**, so the `code_scanning` rule could never be satisfied and *every* merge to `develop`
+   was blocked ("base branch policy prohibits the merge"). Meanwhile `ci.yml`'s Lint + Node
+   18/20/22 matrix were **not** in the ruleset's required set, so they did not gate merges. Net: a
+   deadlocked branch whose required checks were the wrong ones.
 2. **No autonomy loop.** Dependency currency and PR landing were fully manual, so the repo could
    not keep itself fresh or let an agent open a PR and have it merge on green.
 
@@ -28,13 +32,18 @@ coverage thresholds, the Node/axios/TS/jest/eslint/prettier bumps, and replacing
 
 ### Required checks (gates)
 
-- **Branch protection on `develop`:** require a PR before merge; require these status checks green:
-  `Lint`, `Test (Node 18)`, `Test (Node 20)`, `Test (Node 22)`, `Audit`; require the branch up to
-  date before merge; **`enforce_admins = true`** with **`required_approving_review_count = 0`**.
-  - `enforce_admins = true` makes the checks enforceable on *every* merge path including the
-    owner's — the maintainer chose this over a personal bypass, matching the fork's trust goal.
-  - `required_approving_review_count = 0` avoids a solo-repo deadlock: GitHub forbids approving
-    your own PR, so requiring ≥1 review would make the maintainer unable to merge anything.
+- **Extend the existing ruleset rather than add classic branch protection** (reuse what's there;
+  the ruleset already enforces on everyone via an empty bypass-actor list, which *is* the
+  `enforce_admins = true` the maintainer chose). To the "main branch" ruleset add:
+  - a `pull_request` rule (require a PR before merge, `required_approving_review_count = 0` — a
+    solo repo cannot require reviews because GitHub forbids approving your own PR), and
+  - a `required_status_checks` rule for `Lint`, `Test (Node 18)`, `Test (Node 20)`,
+    `Test (Node 22)`, `Audit` — the ruleset previously gated on scanning/quality/review but not on
+    the test matrix.
+- **`CodeQL` workflow** (`github/codeql-action`, `javascript-typescript`) added — the ruleset
+  already *requires* CodeQL results; nothing produced them. This un-blocks `develop` and satisfies
+  the `code_scanning` rule. (This reverses an earlier draft that deferred CodeQL as "low signal":
+  the repo's own policy already mandates it, so it is not optional here.)
 - **`Audit` job** (`npm audit --audit-level=high --omit=dev`) added to `ci.yml` — a baseline
   supply-chain gate over the committed lockfile.
 - **Per-PR dependency-delta scanning is left to the repo's existing Socket Security** (`Socket
@@ -65,8 +74,9 @@ coverage thresholds, the Node/axios/TS/jest/eslint/prettier bumps, and replacing
 - **Auto-merge everything on green (incl. runtime minors / majors)** — rejected. The unit suite is
   100% frozen 2022 fixtures + `jest.mock("axios")`; it cannot catch a breaking *runtime* dependency
   change, so green ≠ safe for runtime semver-minor+. Scope auto-merge to patches + dev-dep minors.
-- **CodeQL / SAST as a required check** — deferred. Low signal on pure request/parse code with no
-  auth/DB/injection surface.
+- **CodeQL / SAST as a required check** — *initially* deferred as low signal on pure request/parse
+  code, then **adopted** once CI revealed the existing ruleset already requires CodeQL and was
+  deadlocking merges without it. Satisfying the policy beat fighting it.
 - **Release automation (release-please / semantic-release)** — deferred. `publish.yml` is already
   tag-triggered and works; a release-PR bot adds config + a new failure surface for a rarely
   released library.
@@ -100,8 +110,9 @@ coverage thresholds, the Node/axios/TS/jest/eslint/prettier bumps, and replacing
   auto-merge to dev-dependencies only, or add a pre-merge live smoke test.
 - `npm audit` starts blocking unrelated PRs on unfixable transitive advisories → adopt `audit-ci`
   with an allowlist.
-- The library grows a network-writing or credential-handling surface (e.g. issue #68,
-  send-messages) → add CodeQL / SAST as a required check.
+- The `code_quality` / `copilot_code_review` ruleset rules prove unsatisfiable (e.g. Copilot review
+  not available on the plan) → drop those rules from the ruleset rather than leave `develop`
+  deadlocked on them.
 - Release cadence becomes frequent enough that manual `git tag` is the bottleneck, or changelog
   drift recurs → adopt release-please / semantic-release.
 - `fork-hardening.md` Phase 4 lands the coverage threshold → add the coverage check to the required
