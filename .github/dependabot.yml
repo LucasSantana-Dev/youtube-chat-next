@@ -1,0 +1,18 @@
+version: 2
+updates:
+  # Runtime + dev npm dependencies. The paired auto-merge workflow lands only the safe subset
+  # (patches, and dev-dependency minors); runtime minors and all majors wait for a human.
+  - package-ecosystem: "npm"
+    directory: "/"
+    target-branch: "develop"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+
+  # Keeps the pinned GitHub Actions current (also feeds the SHA/version-currency story).
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    target-branch: "develop"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5

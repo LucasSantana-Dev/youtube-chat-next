@@ -8,6 +8,13 @@ on:
       - master
       - develop
 
+# Cancel a superseded run on the same ref (new push to a PR, or a rapid re-push to a
+# branch) instead of paying for both. PR runs and branch-push runs live on distinct refs,
+# so they never cancel each other.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   lint:
     name: Lint
@@ -46,3 +53,23 @@ jobs:
         run: npm run build
       - name: Run unit test
         run: npm test
+
+  audit:
+    name: Audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      # Baseline supply-chain gate over the committed lockfile. Complements the repo's existing
+      # Socket Security PR Alerts, which scan the per-PR dependency delta. Scoped to runtime deps
+      # at high/critical: the shipped surface is tiny (axios + typed-emitter), so false blocks are
+      # unlikely. If an unfixable transitive advisory ever blocks unrelated PRs, switch to audit-ci
+      # with an allowlist (deferred until that actually happens).
+      - name: Audit production dependencies
+        run: npm audit --audit-level=high --omit=dev
