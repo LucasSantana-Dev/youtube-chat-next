@@ -27,10 +27,13 @@ const mockFetchLivePage = fetchLivePage as jest.Mock
 function once(emitter: LiveChat, event: "chat" | "error" | "end", ms = 2000): Promise<unknown> {
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => reject(new Error(`timed out waiting for "${event}"`)), ms)
-    emitter.once(event as never, ((payload: unknown) => {
-      clearTimeout(timer)
-      resolve(payload)
-    }) as never)
+    emitter.once(
+      event as never,
+      ((payload: unknown) => {
+        clearTimeout(timer)
+        resolve(payload)
+      }) as never
+    )
   })
 }
 

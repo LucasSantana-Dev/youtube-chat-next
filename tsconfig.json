@@ -1,8 +1,10 @@
 {
   "compilerOptions": {
-    "target": "es2015",
+    "target": "es2022",
     "module": "commonjs",
     "strict": true,
+    "noUncheckedIndexedAccess": false,
+    "noImplicitOverride": true,
     "importHelpers": false,
     "moduleResolution": "node",
     "experimentalDecorators": true,

@@ -58,7 +58,7 @@ export class LiveChat extends (EventEmitter as new () => TypedEmitter<LiveChatEv
       this.#errorCount = 0
 
       this.emit("start", this.liveId)
-      void this.#loop()
+      void this.#loop(options)
       return true
     } catch (err) {
       this.emit("error", err)
@@ -85,12 +85,12 @@ export class LiveChat extends (EventEmitter as new () => TypedEmitter<LiveChatEv
    * previous request has come back — so a slow response overlaps the next one and both send the
    * same continuation token.
    */
-  async #loop() {
+  async #loop(options: FetchOptions) {
     while (this.#running) {
       let delay = this.#interval
 
       try {
-        const [chatItems, continuation, timeoutMs] = await fetchChat(this.#options!)
+        const [chatItems, continuation, timeoutMs] = await fetchChat(options)
         if (!this.#running) {
           return
         }
@@ -104,7 +104,7 @@ export class LiveChat extends (EventEmitter as new () => TypedEmitter<LiveChatEv
           return
         }
 
-        this.#options!.continuation = continuation
+        options.continuation = continuation
         delay = Math.max(this.#interval, timeoutMs)
       } catch (err) {
         if (!this.#running) {

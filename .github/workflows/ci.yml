@@ -4,6 +4,7 @@ on:
   pull_request:
   push:
     branches:
+      - main
       - master
       - develop
 
@@ -12,32 +13,32 @@ jobs:
     name: Lint
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v2
-      - name: Setup Node
-        uses: actions/setup-node@v2
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
-          node-version: "16"
-          cache: yarn
-      - name: Install modules
-        run: yarn install
+          node-version: "22"
+          cache: npm
+      - run: npm ci
       - name: Check format
-        run: yarn run format-check
+        run: npm run format-check
       - name: Run Eslint
-        run: yarn run lint
+        run: npm run lint
 
   test:
-    name: Test
+    name: Test (Node ${{ matrix.node }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ["18", "20", "22"]
     steps:
-      - name: Checkout
-        uses: actions/checkout@v2
-      - name: Setup Node
-        uses: actions/setup-node@v2
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
-          node-version: "16"
-          cache: yarn
-      - name: Install modules
-        run: yarn install
+          node-version: ${{ matrix.node }}
+          cache: npm
+      - run: npm ci
+      - name: Build
+        run: npm run build
       - name: Run unit test
-        run: yarn run test
+        run: npm test

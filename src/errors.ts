@@ -21,7 +21,10 @@ export abstract class YoutubeChatError extends Error {
  * to a transient failure. Consumers should treat this as "stop and alert", not "retry".
  */
 export class ScrapeError extends YoutubeChatError {
-  constructor(readonly field: string, message?: string) {
+  constructor(
+    readonly field: string,
+    message?: string
+  ) {
     super(message ?? `Could not find "${field}" on the live page. YouTube's page shape may have changed.`)
   }
 }
@@ -31,7 +34,10 @@ export class NotLiveError extends YoutubeChatError {}
 
 /** YouTube rate limited (429) or rejected (403) the request. */
 export class RateLimitError extends YoutubeChatError {
-  constructor(readonly status: number, readonly retryAfterMs?: number) {
+  constructor(
+    readonly status: number,
+    readonly retryAfterMs?: number
+  ) {
     super(
       `YouTube responded ${status}.` +
         (retryAfterMs ? ` Retry-After: ${Math.round(retryAfterMs / 1000)}s.` : "") +
